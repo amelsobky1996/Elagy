@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../i18n.dart';
 import '../theme.dart';
 import 'home.dart';
 
@@ -34,6 +35,7 @@ class _SplashScreenState extends State<SplashScreen>
 
   void _goHome() {
     if (!mounted) return;
+    StoreScope.read(context).splashShown = true;
     Navigator.of(context).pushReplacement(PageRouteBuilder(
       transitionDuration: const Duration(milliseconds: 600),
       pageBuilder: (_, __, ___) => const HomeScreen(),
@@ -76,11 +78,21 @@ class _SplashScreenState extends State<SplashScreen>
             opacity: 1 - exit * 0.15,
             child: Container(
               width: double.infinity,
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [Colors.white, Color(0xFFEAF5FC), Color(0xFFE6F5E8)],
+                  colors: AppColors.dark
+                      ? const [
+                          Color(0xFF0E1726),
+                          Color(0xFF13233A),
+                          Color(0xFF142B2A)
+                        ]
+                      : const [
+                          Colors.white,
+                          Color(0xFFEAF5FC),
+                          Color(0xFFE6F5E8)
+                        ],
                 ),
               ),
               child: Stack(
@@ -138,11 +150,30 @@ class _SplashScreenState extends State<SplashScreen>
                           opacity: textT,
                           child: Transform.translate(
                             offset: Offset(0, 30 * (1 - textT)),
-                            child: Image.asset(
-                              'assets/logo_text.png',
-                              width: 150,
-                              filterQuality: FilterQuality.high,
-                            ),
+                            child: AppColors.dark
+                                ? Text(
+                                    tr('علاجي', 'Elagy'),
+                                    style: GoogleFonts.cairo(
+                                      fontSize: 46,
+                                      fontWeight: FontWeight.w800,
+                                      color: Colors.white,
+                                      height: 1.2,
+                                    ),
+                                  )
+                                : isAr
+                                    ? Image.asset(
+                                        'assets/logo_text.png',
+                                        width: 150,
+                                        filterQuality: FilterQuality.high,
+                                      )
+                                    : Text(
+                                        'Elagy',
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 42,
+                                          fontWeight: FontWeight.w800,
+                                          color: AppColors.navy,
+                                        ),
+                                      ),
                           ),
                         ),
                         const SizedBox(height: 14),
@@ -151,7 +182,8 @@ class _SplashScreenState extends State<SplashScreen>
                           child: Transform.translate(
                             offset: Offset(0, 16 * (1 - tagT)),
                             child: Text(
-                              'دواك في ميعاده.. لكل اللي بتحبهم',
+                              tr('دواك في ميعاده.. لكل اللي بتحبهم',
+                                  'Every dose on time, for everyone you love'),
                               style: GoogleFonts.cairo(
                                 fontSize: 15,
                                 color: AppColors.muted,
@@ -171,7 +203,7 @@ class _SplashScreenState extends State<SplashScreen>
                                 value: _main.value,
                                 minHeight: 5,
                                 backgroundColor: AppColors.skyLight,
-                                valueColor: const AlwaysStoppedAnimation(
+                                valueColor: AlwaysStoppedAnimation(
                                     AppColors.green),
                               ),
                             ),
@@ -207,7 +239,7 @@ class _SplashScreenState extends State<SplashScreen>
                                   'Sobky',
                                   style: GoogleFonts.poppins(
                                     fontSize: 14,
-                                    color: AppColors.navy,
+                                    color: AppColors.ink,
                                     fontWeight: FontWeight.w700,
                                     letterSpacing: 0.8,
                                   ),

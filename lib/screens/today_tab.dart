@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../fmt.dart';
+import '../i18n.dart';
 import '../models.dart';
 import '../theme.dart';
 import '../widgets.dart';
@@ -33,7 +34,7 @@ class _TodayTabState extends State<TodayTab> {
         SliverToBoxAdapter(
           child: TabHeader(
             subtitle: greeting(now),
-            title: isToday ? 'جرعات النهارده' : relativeDay(_day, now),
+            title: isToday ? tr('جرعات النهارده', "Today's doses") : relativeDay(_day, now),
             trailing: logoBadge(),
           ),
         ),
@@ -41,10 +42,11 @@ class _TodayTabState extends State<TodayTab> {
           SliverToBoxAdapter(
             child: EmptyState(
               icon: Icons.alarm_add_rounded,
-              title: 'لسه مفيش أدوية',
-              subtitle:
+              title: tr('لسه مفيش أدوية', 'No medicines yet'),
+              subtitle: tr(
                   'ضيف أول دوا لنفسك أو لحد من أهلك، وعلاجي هيفكّرك بكل جرعة في ميعادها لحد ما الكورس يخلص.',
-              action: 'ضيف أول دوا',
+                  "Add a medicine for yourself or a family member and Elagy will remind you of every dose until the course ends."),
+              action: tr('ضيف أول دوا', 'Add first medicine'),
               onAction: widget.onAdd,
             ),
           )
@@ -73,11 +75,12 @@ class _TodayTabState extends State<TodayTab> {
             ),
           ),
           if (doses.isEmpty)
-            const SliverToBoxAdapter(
+            SliverToBoxAdapter(
               child: EmptyState(
                 icon: Icons.event_available_rounded,
-                title: 'مفيش جرعات في اليوم ده',
-                subtitle: 'استريح 😌 مفيش أي دوا متسجل في اليوم ده.',
+                title: tr('مفيش جرعات في اليوم ده', 'No doses on this day'),
+                subtitle: tr('استريح 😌 مفيش أي دوا متسجل في اليوم ده.',
+                    'Relax 😌 nothing is scheduled for this day.'),
               ),
             )
           else
@@ -157,9 +160,9 @@ class _SummaryCard extends StatelessWidget {
                               fontSize: 22,
                               fontWeight: FontWeight.w800,
                               height: 1.1)),
-                      const Text('جرعة',
-                          style:
-                              TextStyle(color: Colors.white70, fontSize: 12)),
+                      Text(tr('جرعة', 'doses'),
+                          style: const TextStyle(
+                              color: Colors.white70, fontSize: 12)),
                     ],
                   ),
                 ),
@@ -173,12 +176,14 @@ class _SummaryCard extends StatelessWidget {
               children: [
                 Text(
                   total == 0
-                      ? 'مفيش جرعات'
+                      ? tr('مفيش جرعات', 'No doses')
                       : taken == total
-                          ? 'برافو! خلصت كل الجرعات 🎉'
+                          ? tr('برافو! خلصت كل الجرعات 🎉', 'Great! All doses taken 🎉')
                           : isToday
-                              ? 'فاضل ${total - taken} من $total النهارده'
-                              : 'فاضل ${total - taken} من $total',
+                              ? tr('فاضل ${total - taken} من $total النهارده',
+                                  '${total - taken} of $total left today')
+                              : tr('فاضل ${total - taken} من $total',
+                                  '${total - taken} of $total left'),
                   style: const TextStyle(
                       color: Colors.white,
                       fontSize: 16,
@@ -202,7 +207,7 @@ class _SummaryCard extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'الجرعة الجاية: ${next.med.name}',
+                                tr('الجرعة الجاية: ${next.med.name}', 'Next: ${next.med.name}'),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
@@ -211,7 +216,7 @@ class _SummaryCard extends StatelessWidget {
                                     fontSize: 13),
                               ),
                               Text(
-                                '${nextPerson?.name ?? ''} • ${fmtDateTime(next.at)} • ${next.at.isAfter(now) ? countdown(next.at.difference(now)) : 'دلوقتي'}',
+                                '${nextPerson?.name ?? ''} • ${fmtDateTime(next.at)} • ${next.at.isAfter(now) ? countdown(next.at.difference(now)) : tr('دلوقتي', 'now')}',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
@@ -224,8 +229,8 @@ class _SummaryCard extends StatelessWidget {
                     ),
                   )
                 else
-                  const Text('مفيش جرعات جاية 👌',
-                      style: TextStyle(color: Colors.white70)),
+                  Text(tr('مفيش جرعات جاية 👌', 'No upcoming doses 👌'),
+                      style: const TextStyle(color: Colors.white70)),
               ],
             ),
           ),
@@ -304,18 +309,18 @@ class _WeekStrip extends StatelessWidget {
               margin: const EdgeInsetsDirectional.only(end: 8, bottom: 10),
               decoration: active
                   ? BoxDecoration(
-                      color: AppColors.navy,
+                      color: AppColors.primary,
                       borderRadius: BorderRadius.circular(18),
                       boxShadow: [
                         BoxShadow(
-                          color: AppColors.navy.withValues(alpha: 0.3),
+                          color: AppColors.primary.withValues(alpha: 0.3),
                           blurRadius: 10,
                           offset: const Offset(0, 4),
                         ),
                       ],
                     )
                   : BoxDecoration(
-                      color: Colors.white,
+                      color: AppColors.card,
                       borderRadius: BorderRadius.circular(18),
                       border: Border.all(
                           color: isToday ? AppColors.sky : AppColors.line),
@@ -336,7 +341,7 @@ class _WeekStrip extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w800,
-                      color: active ? Colors.white : AppColors.navy,
+                      color: active ? Colors.white : AppColors.ink,
                     ),
                   ),
                 ],
@@ -369,25 +374,25 @@ class _DoseTile extends StatelessWidget {
       case DoseState.taken:
         accent = AppColors.green;
         accentBg = AppColors.greenLight;
-        stateText = 'اتاخدت';
+        stateText = tr('اتاخدت', 'Taken');
         stateIcon = Icons.check_circle_rounded;
         break;
       case DoseState.due:
         accent = AppColors.orange;
         accentBg = AppColors.orangeLight;
-        stateText = 'ميعادها دلوقتي';
+        stateText = tr('ميعادها دلوقتي', 'Due now');
         stateIcon = Icons.notifications_active_rounded;
         break;
       case DoseState.missed:
         accent = AppColors.red;
         accentBg = AppColors.redLight;
-        stateText = 'فاتت';
+        stateText = tr('فاتت', 'Missed');
         stateIcon = Icons.error_outline_rounded;
         break;
       case DoseState.upcoming:
         accent = AppColors.sky;
         accentBg = AppColors.skyLight;
-        stateText = 'جاية';
+        stateText = tr('جاية', 'Upcoming');
         stateIcon = Icons.schedule_rounded;
         break;
     }
@@ -403,13 +408,13 @@ class _DoseTile extends StatelessWidget {
               children: [
                 const SizedBox(height: 18),
                 Text(
-                  fmtDateTime(dose.at).split(' ').first,
+                  clockOf(dose.at.hour, dose.at.minute),
                   style: const TextStyle(
                       fontWeight: FontWeight.w800, fontSize: 16, height: 1),
                 ),
                 Text(
-                  fmtDateTime(dose.at).split(' ').last == 'ص' ? 'صباحًا' : 'مساءً',
-                  style: const TextStyle(color: AppColors.muted, fontSize: 11),
+                  dose.at.hour < 12 ? tr('صباحًا', 'AM') : tr('مساءً', 'PM'),
+                  style: TextStyle(color: AppColors.muted, fontSize: 11),
                 ),
                 const SizedBox(height: 6),
                 Expanded(
@@ -469,8 +474,8 @@ class _DoseTile extends StatelessWidget {
                                   ),
                                   if (dose.isLast) ...[
                                     const SizedBox(width: 6),
-                                    const Pill(
-                                      text: 'آخر جرعة',
+                                    Pill(
+                                      text: tr('آخر جرعة', 'Last dose'),
                                       color: Colors.white,
                                       bg: AppColors.orange,
                                       icon: Icons.flag_rounded,
@@ -483,7 +488,7 @@ class _DoseTile extends StatelessWidget {
                                 '${dose.med.dose} • ${person?.name ?? ''}',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
+                                style: TextStyle(
                                     color: AppColors.muted, fontSize: 13),
                               ),
                               const SizedBox(height: 6),
@@ -497,8 +502,9 @@ class _DoseTile extends StatelessWidget {
                                   ),
                                   const SizedBox(width: 6),
                                   Text(
-                                    'يوم ${dose.dayNumber} من ${dose.med.days}',
-                                    style: const TextStyle(
+                                    tr('يوم ${dose.dayNumber} من ${dose.med.days}',
+                                        'Day ${dose.dayNumber}/${dose.med.days}'),
+                                    style: TextStyle(
                                         color: AppColors.muted, fontSize: 12),
                                   ),
                                 ],

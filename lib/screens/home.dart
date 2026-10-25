@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 
 import '../fmt.dart';
+import '../i18n.dart';
 import '../models.dart';
 import '../notifier.dart';
 import '../theme.dart';
-import '../widgets.dart';
 import 'med_form.dart';
 import 'meds_tab.dart';
 import 'people_tab.dart';
+import 'settings_tab.dart';
 import 'today_tab.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -18,7 +19,10 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  int _tab = 0;
+  void _setTab(int i) {
+    StoreScope.read(context).homeTab = i;
+    setState(() {});
+  }
 
   Future<void> _addMed() async {
     final store = StoreScope.read(context);
@@ -26,7 +30,7 @@ class _HomeScreenState extends State<HomeScreen> {
       MaterialPageRoute(builder: (_) => const MedFormScreen()),
     );
     if (saved == true && mounted) {
-      setState(() => _tab = 0);
+      _setTab(0);
       if (store.permission == 'default') {
         await store.requestPermission();
       }
@@ -36,10 +40,12 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final store = StoreScope.of(context);
+    final tab = store.homeTab;
     final tabs = [
       TodayTab(onAdd: _addMed),
       MedsTab(onAdd: _addMed),
       const PeopleTab(),
+      const SettingsTab(),
     ];
     return Scaffold(
       body: SafeArea(
@@ -47,53 +53,57 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Column(
           children: [
             if (store.alert != null) _AlertBanner(dose: store.alert!),
-            if (store.loaded &&
+            if (tab != 3 &&
+                store.loaded &&
                 store.meds.isNotEmpty &&
                 store.permission != 'granted')
-              const _PermissionBanner(),
+              const PermissionBanner(),
             Expanded(
               child: AnimatedSwitcher(
                 duration: const Duration(milliseconds: 250),
-                child: KeyedSubtree(key: ValueKey(_tab), child: tabs[_tab]),
+                child: KeyedSubtree(key: ValueKey(tab), child: tabs[tab]),
               ),
             ),
           ],
         ),
       ),
-      floatingActionButton: _tab == 2
+      floatingActionButton: tab >= 2
           ? null
           : FloatingActionButton.extended(
               onPressed: _addMed,
-              backgroundColor: AppColors.navy,
+              backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(20)),
               icon: const Icon(Icons.add_rounded),
-              label: const Text('دوا جديد',
-                  style: TextStyle(fontWeight: FontWeight.w700)),
+              label: Text(tr('دوا جديد', 'New medicine'),
+                  style: const TextStyle(fontWeight: FontWeight.w700)),
             ),
       bottomNavigationBar: NavigationBar(
-        selectedIndex: _tab,
-        backgroundColor: Colors.white,
-        indicatorColor: AppColors.skyLight,
-        height: 68,
-        onDestinationSelected: (i) => setState(() => _tab = i),
-        destinations: const [
+        selectedIndex: tab,
+        height: 70,
+        onDestinationSelected: _setTab,
+        destinations: [
           NavigationDestination(
-            icon: Icon(Icons.today_outlined),
-            selectedIcon: Icon(Icons.today_rounded, color: AppColors.navy),
-            label: 'اليوم',
+            icon: const Icon(Icons.today_outlined),
+            selectedIcon: Icon(Icons.today_rounded, color: AppColors.ink),
+            label: tr('اليوم', 'Today'),
           ),
           NavigationDestination(
-            icon: Icon(Icons.medication_outlined),
+            icon: const Icon(Icons.medication_outlined),
             selectedIcon:
-                Icon(Icons.medication_rounded, color: AppColors.navy),
-            label: 'الأدوية',
+                Icon(Icons.medication_rounded, color: AppColors.ink),
+            label: tr('الأدوية', 'Medicines'),
           ),
           NavigationDestination(
-            icon: Icon(Icons.people_outline_rounded),
-            selectedIcon: Icon(Icons.people_rounded, color: AppColors.navy),
-            label: 'الأشخاص',
+            icon: const Icon(Icons.people_outline_rounded),
+            selectedIcon: Icon(Icons.people_rounded, color: AppColors.ink),
+            label: tr('الأشخاص', 'People'),
+          ),
+          NavigationDestination(
+            icon: const Icon(Icons.settings_outlined),
+            selectedIcon: Icon(Icons.settings_rounded, color: AppColors.ink),
+            label: tr('الإعدادات', 'Settings'),
           ),
         ],
       ),
@@ -110,6 +120,7 @@ class _AlertBanner extends StatelessWidget {
     final store = StoreScope.of(context);
     final person = store.personById(dose.med.personId);
     final last = dose.isLast;
+    final who = person?.name ?? '';
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 10, 16, 4),
       padding: const EdgeInsets.all(14),
@@ -140,8 +151,8 @@ class _AlertBanner extends StatelessWidget {
               children: [
                 Text(
                   last
-                      ? 'دي آخر جرعة! ${person?.name ?? ''}'
-                      : 'ميعاد الدوا — ${person?.name ?? ''}',
+                      ? tr('دي آخر جرعة! $who', 'Last dose! $who')
+                      : tr('ميعاد الدوا — $who', 'Medicine time — $who'),
                   style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.w800,
@@ -162,8 +173,8 @@ class _AlertBanner extends StatelessWidget {
                   borderRadius: BorderRadius.circular(14)),
             ),
             onPressed: () => store.toggleTaken(dose),
-            child: const Text('خدتها ✓',
-                style: TextStyle(fontWeight: FontWeight.w800)),
+            child: Text(tr('خدتها ✓', 'Taken ✓'),
+                style: const TextStyle(fontWeight: FontWeight.w800)),
           ),
           IconButton(
             onPressed: store.dismissAlert,
@@ -175,24 +186,27 @@ class _AlertBanner extends StatelessWidget {
   }
 }
 
-class _PermissionBanner extends StatelessWidget {
-  const _PermissionBanner();
+class PermissionBanner extends StatelessWidget {
+  const PermissionBanner({super.key});
 
   @override
   Widget build(BuildContext context) {
     final store = StoreScope.of(context);
     final denied = store.permission == 'denied';
     final unsupported = store.permission == 'unsupported';
-    final ios = !WebNotifier.isStandalone();
     String msg;
     if (unsupported) {
-      msg = ios
-          ? 'عشان الإشعارات تشتغل على الآيفون: Share ← Add to Home Screen وافتح علاجي من الأيقونة.'
-          : 'المتصفح ده مش بيدعم الإشعارات. جرّب Chrome.';
+      msg = WebNotifier.isIos() && !WebNotifier.isStandalone()
+          ? tr('عشان الإشعارات تشتغل على الآيفون: Share ← Add to Home Screen وافتح علاجي من الأيقونة.',
+              'For notifications on iPhone: Share → Add to Home Screen, then open Elagy from the icon.')
+          : tr('المتصفح ده مش بيدعم الإشعارات. جرّب Chrome.',
+              "This browser doesn't support notifications. Try Chrome.");
     } else if (denied) {
-      msg = 'الإشعارات مقفولة. افتحها من إعدادات المتصفح للموقع ده.';
+      msg = tr('الإشعارات مقفولة. افتحها من إعدادات المتصفح للموقع ده.',
+          'Notifications are blocked. Allow them in the browser settings for this site.');
     } else {
-      msg = 'فعّل الإشعارات عشان نفكّرك بكل جرعة في ميعادها.';
+      msg = tr('فعّل الإشعارات عشان نفكّرك بكل جرعة في ميعادها.',
+          'Turn on notifications so we can remind you of every dose.');
     }
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 10, 16, 4),
@@ -214,8 +228,8 @@ class _PermissionBanner extends StatelessWidget {
           if (!denied && !unsupported)
             TextButton(
               onPressed: store.requestPermission,
-              child: const Text('تفعيل',
-                  style: TextStyle(fontWeight: FontWeight.w800)),
+              child: Text(tr('تفعيل', 'Enable'),
+                  style: const TextStyle(fontWeight: FontWeight.w800)),
             ),
         ],
       ),
@@ -243,7 +257,7 @@ class TabHeader extends StatelessWidget {
               children: [
                 if (subtitle != null)
                   Text(subtitle!,
-                      style: const TextStyle(
+                      style: TextStyle(
                           color: AppColors.muted,
                           fontWeight: FontWeight.w600)),
                 Text(title,
@@ -261,9 +275,9 @@ class TabHeader extends StatelessWidget {
 
 String greeting(DateTime now) {
   final h = now.hour;
-  if (h < 12) return 'صباح الخير ☀️';
-  if (h < 18) return 'مساء النور 🌤️';
-  return 'مساء الخير 🌙';
+  if (h < 12) return tr('صباح الخير ☀️', 'Good morning ☀️');
+  if (h < 18) return tr('مساء النور 🌤️', 'Good afternoon 🌤️');
+  return tr('مساء الخير 🌙', 'Good evening 🌙');
 }
 
 String todayLabel(DateTime now) => fullDate(now);
@@ -272,9 +286,6 @@ Widget logoBadge() => Container(
       width: 46,
       height: 46,
       padding: const EdgeInsets.all(5),
-      decoration: cardDeco(radius: 16),
+      decoration: cardDeco(radius: 16, color: Colors.white),
       child: Image.asset('assets/logo_icon.png'),
     );
-
-// Keep PersonAvatar import used in this file's public API for tabs.
-typedef Avatar = PersonAvatar;

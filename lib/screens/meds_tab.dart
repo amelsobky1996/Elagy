@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../fmt.dart';
+import '../i18n.dart';
 import '../models.dart';
 import '../theme.dart';
 import '../widgets.dart';
@@ -33,8 +34,8 @@ class _MedsTabState extends State<MedsTab> {
       padding: const EdgeInsets.only(bottom: 120),
       children: [
         TabHeader(
-          subtitle: '${active.length} كورس شغال',
-          title: 'الأدوية',
+          subtitle: tr('${active.length} كورس شغال', '${active.length} active courses'),
+          title: tr('الأدوية', 'Medicines'),
           trailing: logoBadge(),
         ),
         PersonFilterBar(
@@ -46,17 +47,17 @@ class _MedsTabState extends State<MedsTab> {
         if (all.isEmpty)
           EmptyState(
             icon: Icons.medication_liquid_rounded,
-            title: 'مفيش أدوية هنا',
-            subtitle: 'ضيف دوا وحدد مواعيده وعدد الأيام.',
-            action: 'إضافة دوا',
+            title: tr('مفيش أدوية هنا', 'No medicines here'),
+            subtitle: tr('ضيف دوا وحدد مواعيده وعدد الأيام.', 'Add a medicine with its times and number of days.'),
+            action: tr('إضافة دوا', 'Add medicine'),
             onAction: widget.onAdd,
           ),
         if (active.isNotEmpty) ...[
-          const _Section('شغالة دلوقتي'),
+          _Section(tr('شغالة دلوقتي', 'Active now')),
           for (final m in active) _MedCard(med: m, finished: false),
         ],
         if (done.isNotEmpty) ...[
-          const _Section('كورسات خلصت ✅'),
+          _Section(tr('كورسات خلصت ✅', 'Completed courses ✅')),
           for (final m in done) _MedCard(med: m, finished: true),
         ],
       ],
@@ -72,7 +73,7 @@ class _Section extends StatelessWidget {
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.fromLTRB(22, 14, 22, 8),
         child: Text(text,
-            style: const TextStyle(
+            style: TextStyle(
                 fontWeight: FontWeight.w800,
                 color: AppColors.muted,
                 fontSize: 14)),
@@ -138,7 +139,7 @@ class _MedCard extends StatelessWidget {
                                 '${person?.name ?? ''} • ${med.dose}',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
+                                style: TextStyle(
                                     color: AppColors.muted, fontSize: 13),
                               ),
                             ),
@@ -148,7 +149,7 @@ class _MedCard extends StatelessWidget {
                     ),
                   ),
                   PopupMenuButton<String>(
-                    icon: const Icon(Icons.more_vert_rounded,
+                    icon: Icon(Icons.more_vert_rounded,
                         color: AppColors.muted),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16)),
@@ -159,29 +160,30 @@ class _MedCard extends StatelessWidget {
                       } else if (v == 'delete') {
                         final ok = await confirmDialog(
                           context,
-                          title: 'حذف ${med.name}؟',
-                          message: 'هيتمسح الدوا وكل تذكيراته.',
+                          title: tr('حذف ${med.name}؟', 'Delete ${med.name}?'),
+                          message: tr('هيتمسح الدوا وكل تذكيراته.',
+                              'The medicine and all its reminders will be removed.'),
                         );
                         if (ok) store.deleteMed(med);
                       }
                     },
-                    itemBuilder: (_) => const [
+                    itemBuilder: (_) => [
                       PopupMenuItem(
                         value: 'edit',
                         child: Row(children: [
-                          Icon(Icons.edit_rounded, size: 20),
-                          SizedBox(width: 10),
-                          Text('تعديل'),
+                          const Icon(Icons.edit_rounded, size: 20),
+                          const SizedBox(width: 10),
+                          Text(tr('تعديل', 'Edit')),
                         ]),
                       ),
                       PopupMenuItem(
                         value: 'delete',
                         child: Row(children: [
-                          Icon(Icons.delete_outline_rounded,
+                          const Icon(Icons.delete_outline_rounded,
                               size: 20, color: AppColors.red),
-                          SizedBox(width: 10),
-                          Text('حذف',
-                              style: TextStyle(color: AppColors.red)),
+                          const SizedBox(width: 10),
+                          Text(tr('حذف', 'Delete'),
+                              style: const TextStyle(color: AppColors.red)),
                         ]),
                       ),
                     ],
@@ -196,7 +198,7 @@ class _MedCard extends StatelessWidget {
                   for (final t in ([...med.times]..sort()))
                     Pill(
                       text: fmtHm(t),
-                      color: AppColors.navy,
+                      color: AppColors.ink,
                       bg: AppColors.skyLight,
                       icon: Icons.alarm_rounded,
                     ),
@@ -207,20 +209,20 @@ class _MedCard extends StatelessWidget {
                 children: [
                   Text(
                     finished
-                        ? 'الكورس خلص • ${shortDate(med.endAt)}'
+                        ? tr('الكورس خلص • ${shortDate(med.endAt)}', 'Completed • ${shortDate(med.endAt)}')
                         : notStarted
-                            ? 'يبدأ ${relativeDay(med.startDate, now)}'
-                            : 'يوم $day من ${med.days}',
+                            ? tr('يبدأ ${relativeDay(med.startDate, now)}', 'Starts ${relativeDay(med.startDate, now)}')
+                            : tr('يوم $day من ${med.days}', 'Day $day of ${med.days}'),
                     style: const TextStyle(
                         fontWeight: FontWeight.w700, fontSize: 13),
                   ),
                   const Spacer(),
                   Text(
                     finished
-                        ? 'اتاخد $taken من $total'
-                        : 'فاضل $remaining جرعة',
+                        ? tr('اتاخد $taken من $total', '$taken of $total taken')
+                        : tr('فاضل $remaining جرعة', '$remaining doses left'),
                     style:
-                        const TextStyle(color: AppColors.muted, fontSize: 12),
+                        TextStyle(color: AppColors.muted, fontSize: 12),
                   ),
                 ],
               ),
@@ -243,8 +245,8 @@ class _MedCard extends StatelessWidget {
                         size: 15, color: AppColors.orange),
                     const SizedBox(width: 4),
                     Text(
-                      'آخر جرعة: ${relativeDay(med.endAt, now)} ${fmtDateTime(med.endAt)}',
-                      style: const TextStyle(
+                      tr('آخر جرعة: ', 'Last dose: ') + '${relativeDay(med.endAt, now)} ${fmtDateTime(med.endAt)}',
+                      style: TextStyle(
                           color: AppColors.muted, fontSize: 12),
                     ),
                   ],
@@ -253,7 +255,7 @@ class _MedCard extends StatelessWidget {
               if (med.note.isNotEmpty) ...[
                 const SizedBox(height: 8),
                 Text('📝 ${med.note}',
-                    style: const TextStyle(
+                    style: TextStyle(
                         color: AppColors.muted, fontSize: 13, height: 1.5)),
               ],
             ],

@@ -1,4 +1,9 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
+
+import 'i18n.dart';
 
 /// Colors used for people avatars.
 const personPalette = <Color>[
@@ -17,13 +22,36 @@ class Person {
   String name;
   int colorIndex;
   String emoji;
+  String? _photo; // data URL (jpeg), small square
+  Uint8List? _photoBytes;
 
   Person({
     required this.id,
     required this.name,
     this.colorIndex = 0,
     this.emoji = '',
-  });
+    String? photo,
+  }) : _photo = photo;
+
+  String? get photo => _photo;
+  set photo(String? v) {
+    _photo = v;
+    _photoBytes = null;
+  }
+
+  /// Decoded photo bytes (cached), or null when there's no photo.
+  Uint8List? get photoBytes {
+    final p = _photo;
+    if (p == null || p.isEmpty) return null;
+    if (_photoBytes != null) return _photoBytes;
+    try {
+      final i = p.indexOf(',');
+      _photoBytes = base64Decode(i >= 0 ? p.substring(i + 1) : p);
+    } catch (_) {
+      _photoBytes = null;
+    }
+    return _photoBytes;
+  }
 
   Color get color => personPalette[colorIndex % personPalette.length];
 
@@ -33,13 +61,20 @@ class Person {
   }
 
   Map<String, dynamic> toJson() =>
-      {'id': id, 'name': name, 'color': colorIndex, 'emoji': emoji};
+      {
+        'id': id,
+        'name': name,
+        'color': colorIndex,
+        'emoji': emoji,
+        if (_photo != null) 'photo': _photo,
+      };
 
   factory Person.fromJson(Map<String, dynamic> j) => Person(
         id: j['id'] as String,
         name: j['name'] as String? ?? '',
         colorIndex: (j['color'] as num?)?.toInt() ?? 0,
         emoji: j['emoji'] as String? ?? '',
+        photo: j['photo'] as String?,
       );
 }
 
@@ -49,17 +84,17 @@ extension MedFormX on MedForm {
   String get label {
     switch (this) {
       case MedForm.pill:
-        return 'أقراص';
+        return tr('أقراص', 'Pills');
       case MedForm.syrup:
-        return 'شراب';
+        return tr('شراب', 'Syrup');
       case MedForm.injection:
-        return 'حقن';
+        return tr('حقن', 'Injection');
       case MedForm.drops:
-        return 'نقط';
+        return tr('نقط', 'Drops');
       case MedForm.cream:
-        return 'كريم';
+        return tr('كريم', 'Cream');
       case MedForm.other:
-        return 'أخرى';
+        return tr('أخرى', 'Other');
     }
   }
 

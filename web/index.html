@@ -113,6 +113,89 @@
     window.elagyIsStandalone = function () {
       return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
     };
+
+    window.elagyIsIos = function () {
+      return /iphone|ipad|ipod/i.test(navigator.userAgent) ||
+        (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    };
+
+    // ---------- Install prompt (Android / desktop Chrome) ----------
+    var elagyInstallEvt = null;
+    window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); elagyInstallEvt = e; });
+    window.elagyCanInstall = function () { return !!elagyInstallEvt; };
+    window.elagyInstall = function () {
+      if (!elagyInstallEvt) return Promise.resolve(false);
+      var e = elagyInstallEvt; elagyInstallEvt = null;
+      e.prompt();
+      return e.userChoice.then(function (c) { return c && c.outcome === 'accepted'; }).catch(function () { return false; });
+    };
+
+    // ---------- File helpers ----------
+    // Opens a hidden <input type=file>; resolves '' if the user cancels.
+    function elagyOpenFile(accept, capture, read) {
+      return new Promise(function (resolve) {
+        var input = document.createElement('input');
+        input.type = 'file';
+        input.accept = accept;
+        if (capture) input.setAttribute('capture', 'user');
+        input.style.position = 'fixed'; input.style.left = '-9999px';
+        document.body.appendChild(input);
+        var done = false;
+        function finish(v) { if (done) return; done = true; input.remove(); resolve(v); }
+        input.addEventListener('change', function () {
+          var f = input.files && input.files[0];
+          if (!f) return finish('');
+          read(f).then(finish).catch(function () { finish(''); });
+        });
+        input.addEventListener('cancel', function () { finish(''); });
+        window.addEventListener('focus', function onFocus() {
+          window.removeEventListener('focus', onFocus);
+          setTimeout(function () { if (!input.files || !input.files.length) finish(''); }, 1500);
+        });
+        input.click();
+      });
+    }
+
+    // Picks an image and returns a centered, square 320px JPEG data URL.
+    window.elagyPickImage = function (camera) {
+      return elagyOpenFile('image/*', camera, function (file) {
+        return new Promise(function (resolve, reject) {
+          var url = URL.createObjectURL(file);
+          var img = new Image();
+          img.onload = function () {
+            var size = 320, s = Math.min(img.width, img.height);
+            var c = document.createElement('canvas'); c.width = size; c.height = size;
+            var ctx = c.getContext('2d');
+            ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, size, size);
+            ctx.drawImage(img, (img.width - s) / 2, (img.height - s) / 2, s, s, 0, 0, size, size);
+            URL.revokeObjectURL(url);
+            resolve(c.toDataURL('image/jpeg', 0.82));
+          };
+          img.onerror = function () { URL.revokeObjectURL(url); reject(); };
+          img.src = url;
+        });
+      });
+    };
+
+    window.elagyPickText = function () {
+      return elagyOpenFile('.json,application/json,text/plain', false, function (file) { return file.text(); });
+    };
+
+    window.elagyDownload = function (name, text) {
+      var blob = new Blob([text], { type: 'application/json' });
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob); a.download = name;
+      document.body.appendChild(a); a.click();
+      setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+    };
+
+    // Keep the browser's background colour in sync with the saved theme
+    // so there is no white flash in dark mode.
+    try {
+      var t = localStorage.getItem('flutter.elagy.theme');
+      var dark = t === '"dark"' || (t !== '"light"' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+      if (dark) document.documentElement.style.background = '#0E1726';
+    } catch (e) {}
   </script>
 </head>
 <body>

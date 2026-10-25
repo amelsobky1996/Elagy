@@ -1,4 +1,6 @@
-const _weekdays = [
+import 'i18n.dart';
+
+const _weekdaysAr = [
   'الاثنين',
   'الثلاثاء',
   'الأربعاء',
@@ -7,8 +9,18 @@ const _weekdays = [
   'السبت',
   'الأحد',
 ];
-const _weekdaysShort = ['اثن', 'ثلا', 'أرب', 'خمي', 'جمع', 'سبت', 'أحد'];
-const _months = [
+const _weekdaysEn = [
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+  'Sunday',
+];
+const _weekdaysShortAr = ['اثن', 'ثلا', 'أرب', 'خمي', 'جمع', 'سبت', 'أحد'];
+const _weekdaysShortEn = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const _monthsAr = [
   'يناير',
   'فبراير',
   'مارس',
@@ -22,26 +34,48 @@ const _months = [
   'نوفمبر',
   'ديسمبر',
 ];
+const _monthsEn = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+];
 
-String weekday(DateTime d) => _weekdays[d.weekday - 1];
-String weekdayShort(DateTime d) => _weekdaysShort[d.weekday - 1];
-String monthName(DateTime d) => _months[d.month - 1];
+String weekday(DateTime d) =>
+    (isAr ? _weekdaysAr : _weekdaysEn)[d.weekday - 1];
+String weekdayShort(DateTime d) =>
+    (isAr ? _weekdaysShortAr : _weekdaysShortEn)[d.weekday - 1];
+String monthName(DateTime d) => (isAr ? _monthsAr : _monthsEn)[d.month - 1];
 
-String fullDate(DateTime d) => '${weekday(d)} ${d.day} ${monthName(d)}';
-String shortDate(DateTime d) => '${d.day} ${monthName(d)}';
+String fullDate(DateTime d) => isAr
+    ? '${weekday(d)} ${d.day} ${monthName(d)}'
+    : '${weekday(d)}, ${monthName(d)} ${d.day}';
+String shortDate(DateTime d) =>
+    isAr ? '${d.day} ${monthName(d)}' : '${monthName(d)} ${d.day}';
 
-/// "HH:mm" -> "8:30 م"
+/// "HH:mm" -> "8:30 م" / "8:30 PM"
 String fmtHm(String hm) {
   final p = hm.split(':');
   return fmtTime(int.parse(p[0]), int.parse(p[1]));
 }
 
-String fmtTime(int h, int m) {
-  final period = h < 12 ? 'ص' : 'م';
+String periodOf(int h) => h < 12 ? tr('ص', 'AM') : tr('م', 'PM');
+
+String clockOf(int h, int m) {
   var hh = h % 12;
   if (hh == 0) hh = 12;
-  return '$hh:${m.toString().padLeft(2, '0')} $period';
+  return '$hh:${m.toString().padLeft(2, '0')}';
 }
+
+String fmtTime(int h, int m) => '${clockOf(h, m)} ${periodOf(h)}';
 
 String fmtDateTime(DateTime d) => fmtTime(d.hour, d.minute);
 
@@ -55,18 +89,23 @@ bool sameDay(DateTime a, DateTime b) =>
 
 String relativeDay(DateTime d, DateTime now) {
   final diff = dateOnly(d).difference(dateOnly(now)).inDays;
-  if (diff == 0) return 'النهارده';
-  if (diff == 1) return 'بكره';
-  if (diff == -1) return 'امبارح';
+  if (diff == 0) return tr('النهارده', 'Today');
+  if (diff == 1) return tr('بكره', 'Tomorrow');
+  if (diff == -1) return tr('امبارح', 'Yesterday');
   return fullDate(d);
 }
 
-/// Human countdown: "بعد ساعتين و 10 دقايق"
+/// Human countdown: "بعد ساعتين و 10 دقايق" / "in 2h 10m"
 String countdown(Duration d) {
-  if (d.isNegative) return 'دلوقتي';
+  if (d.isNegative) return tr('دلوقتي', 'now');
   final h = d.inHours;
   final m = d.inMinutes % 60;
-  if (h == 0 && m == 0) return 'خلال دقيقة';
+  if (h == 0 && m == 0) return tr('خلال دقيقة', 'in a minute');
+  if (!isAr) {
+    if (h == 0) return 'in ${m}m';
+    if (m == 0) return 'in ${h}h';
+    return 'in ${h}h ${m}m';
+  }
   String hs;
   if (h == 0) {
     hs = '';
@@ -97,13 +136,22 @@ String countdown(Duration d) {
 }
 
 String daysLabel(int n) {
+  if (!isAr) return n == 1 ? '1 day' : '$n days';
   if (n == 1) return 'يوم واحد';
   if (n == 2) return 'يومين';
   if (n <= 10) return '$n أيام';
   return '$n يوم';
 }
 
+String dayUnit(int n) {
+  if (!isAr) return n == 1 ? 'day' : 'days';
+  if (n == 1) return 'يوم';
+  if (n <= 10) return 'أيام';
+  return 'يوم';
+}
+
 String timesPerDayLabel(int n) {
+  if (!isAr) return n == 1 ? 'once a day' : '$n times a day';
   if (n == 1) return 'مرة في اليوم';
   if (n == 2) return 'مرتين في اليوم';
   if (n <= 10) return '$n مرات في اليوم';

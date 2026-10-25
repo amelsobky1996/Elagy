@@ -1,27 +1,40 @@
 import 'package:flutter/material.dart';
 
+import 'i18n.dart';
 import 'models.dart';
 import 'theme.dart';
 
 class PersonAvatar extends StatelessWidget {
   final Person? person;
   final double size;
-  const PersonAvatar({super.key, required this.person, this.size = 40});
+  final bool ring;
+  const PersonAvatar({
+    super.key,
+    required this.person,
+    this.size = 40,
+    this.ring = false,
+  });
 
   @override
   Widget build(BuildContext context) {
     final color = person?.color ?? AppColors.muted;
+    final bytes = person?.photoBytes;
     return Container(
       width: size,
       height: size,
       alignment: Alignment.center,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [color.withValues(alpha: 0.75), color],
-        ),
+        gradient: bytes != null
+            ? null
+            : LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [color.withValues(alpha: 0.75), color],
+              ),
+        border: (bytes != null || ring)
+            ? Border.all(color: color, width: size > 40 ? 3 : 2)
+            : null,
         boxShadow: [
           BoxShadow(
             color: color.withValues(alpha: 0.30),
@@ -30,20 +43,30 @@ class PersonAvatar extends StatelessWidget {
           ),
         ],
       ),
-      child: Text(
-        person?.initial ?? '؟',
-        style: TextStyle(
-          color: Colors.white,
-          fontWeight: FontWeight.w800,
-          fontSize: size * 0.42,
-          height: 1.1,
-        ),
-      ),
+      child: bytes != null
+          ? ClipOval(
+              child: Image.memory(
+                bytes,
+                width: size,
+                height: size,
+                fit: BoxFit.cover,
+                gaplessPlayback: true,
+              ),
+            )
+          : Text(
+              person?.initial ?? '؟',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w800,
+                fontSize: size * 0.42,
+                height: 1.1,
+              ),
+            ),
     );
   }
 }
 
-/// Horizontal "الكل / person / person" selector.
+/// Horizontal "All / person / person" selector.
 class PersonFilterBar extends StatelessWidget {
   final List<Person> people;
   final String? selected;
@@ -65,9 +88,9 @@ class PersonFilterBar extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 20),
         children: [
           _chip(
-            label: 'الكل',
+            label: tr('الكل', 'All'),
             active: selected == null,
-            color: AppColors.navy,
+            color: AppColors.primary,
             onTap: () => onChanged(null),
             leading: const Icon(Icons.groups_rounded, size: 18),
           ),
@@ -77,7 +100,7 @@ class PersonFilterBar extends StatelessWidget {
               active: selected == p.id,
               color: p.color,
               onTap: () => onChanged(p.id),
-              leading: PersonAvatar(person: p, size: 24),
+              leading: PersonAvatar(person: p, size: 26),
             ),
         ],
       ),
@@ -97,9 +120,9 @@ class PersonFilterBar extends StatelessWidget {
         onTap: onTap,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 220),
-          padding: const EdgeInsetsDirectional.fromSTEB(8, 4, 14, 4),
+          padding: const EdgeInsetsDirectional.fromSTEB(6, 4, 14, 4),
           decoration: BoxDecoration(
-            color: active ? color : Colors.white,
+            color: active ? color : AppColors.card,
             borderRadius: BorderRadius.circular(30),
             border: Border.all(color: active ? color : AppColors.line),
           ),
@@ -107,7 +130,7 @@ class PersonFilterBar extends StatelessWidget {
             children: [
               IconTheme(
                 data: IconThemeData(
-                    color: active ? Colors.white : AppColors.navy),
+                    color: active ? Colors.white : AppColors.ink),
                 child: leading,
               ),
               const SizedBox(width: 6),
@@ -115,7 +138,7 @@ class PersonFilterBar extends StatelessWidget {
                 label,
                 style: TextStyle(
                   fontWeight: FontWeight.w700,
-                  color: active ? Colors.white : AppColors.navy,
+                  color: active ? Colors.white : AppColors.ink,
                 ),
               ),
             ],
@@ -150,7 +173,7 @@ class EmptyState extends StatelessWidget {
           Container(
             width: 96,
             height: 96,
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               color: AppColors.skyLight,
               shape: BoxShape.circle,
             ),
@@ -164,7 +187,7 @@ class EmptyState extends StatelessWidget {
           const SizedBox(height: 6),
           Text(subtitle,
               textAlign: TextAlign.center,
-              style: const TextStyle(color: AppColors.muted, height: 1.6)),
+              style: TextStyle(color: AppColors.muted, height: 1.6)),
           if (action != null) ...[
             const SizedBox(height: 18),
             SizedBox(
@@ -221,29 +244,46 @@ Future<bool> confirmDialog(
   BuildContext context, {
   required String title,
   required String message,
-  String ok = 'حذف',
+  String? ok,
+  IconData icon = Icons.delete_outline_rounded,
 }) async {
   final r = await showDialog<bool>(
     context: context,
     builder: (c) => AlertDialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
-      content: Text(message, style: const TextStyle(height: 1.6)),
+      icon: Container(
+        width: 56,
+        height: 56,
+        decoration: BoxDecoration(
+          color: AppColors.redLight,
+          shape: BoxShape.circle,
+        ),
+        child: Icon(icon, color: AppColors.red),
+      ),
+      title: Text(title,
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontWeight: FontWeight.w800)),
+      content: Text(message,
+          textAlign: TextAlign.center, style: const TextStyle(height: 1.6)),
+      actionsAlignment: MainAxisAlignment.center,
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(c, false),
-          child: const Text('إلغاء'),
+          child: Text(tr('إلغاء', 'Cancel')),
         ),
         FilledButton(
           style: FilledButton.styleFrom(
             backgroundColor: AppColors.red,
-            minimumSize: const Size(90, 44),
+            minimumSize: const Size(100, 44),
           ),
           onPressed: () => Navigator.pop(c, true),
-          child: Text(ok),
+          child: Text(ok ?? tr('حذف', 'Delete')),
         ),
       ],
     ),
   );
   return r ?? false;
 }
+
+void snack(BuildContext context, String text) => ScaffoldMessenger.of(context)
+    .showSnackBar(SnackBar(content: Text(text)));

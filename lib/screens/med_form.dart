@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../fmt.dart';
+import '../i18n.dart';
 import '../models.dart';
 import '../theme.dart';
 import '../widgets.dart';
@@ -25,7 +26,7 @@ class _MedFormScreenState extends State<MedFormScreen> {
   DateTime _start = dateOnly(DateTime.now());
   bool _tried = false;
 
-  static const _doseSuggestions = {
+  static const _doseSuggestionsAr = {
     MedForm.pill: ['قرص واحد', 'نص قرص', 'قرصين', 'كبسولة'],
     MedForm.syrup: ['5 مل', '7.5 مل', '10 مل', 'معلقة صغيرة'],
     MedForm.injection: ['حقنة واحدة', 'نص أمبول', 'أمبول'],
@@ -33,6 +34,16 @@ class _MedFormScreenState extends State<MedFormScreen> {
     MedForm.cream: ['دهان خفيف', 'مرتين دهان'],
     MedForm.other: ['جرعة واحدة', 'بخة', 'بختين', 'كيس'],
   };
+  static const _doseSuggestionsEn = {
+    MedForm.pill: ['1 tablet', '½ tablet', '2 tablets', '1 capsule'],
+    MedForm.syrup: ['5 ml', '7.5 ml', '10 ml', '1 teaspoon'],
+    MedForm.injection: ['1 injection', '½ ampoule', '1 ampoule'],
+    MedForm.drops: ['1 drop', '2 drops', '3 drops', '5 drops'],
+    MedForm.cream: ['Thin layer', 'Apply twice'],
+    MedForm.other: ['1 dose', '1 puff', '2 puffs', '1 sachet'],
+  };
+  Map<MedForm, List<String>> get _doseSuggestions =>
+      isAr ? _doseSuggestionsAr : _doseSuggestionsEn;
 
   @override
   void initState() {
@@ -84,9 +95,9 @@ class _MedFormScreenState extends State<MedFormScreen> {
     final t = await showTimePicker(
       context: context,
       initialTime: initial,
-      helpText: 'اختار ميعاد الجرعة',
-      cancelText: 'إلغاء',
-      confirmText: 'تمام',
+      helpText: tr('اختار ميعاد الجرعة', 'Pick dose time'),
+      cancelText: tr('إلغاء', 'Cancel'),
+      confirmText: tr('تمام', 'OK'),
     );
     if (t == null) return;
     final v = hm(t.hour, t.minute);
@@ -117,9 +128,9 @@ class _MedFormScreenState extends State<MedFormScreen> {
       initialDate: _start,
       firstDate: DateTime.now().subtract(const Duration(days: 60)),
       lastDate: DateTime.now().add(const Duration(days: 365)),
-      helpText: 'تاريخ البداية',
-      cancelText: 'إلغاء',
-      confirmText: 'تمام',
+      helpText: tr('تاريخ البداية', 'Start date'),
+      cancelText: tr('إلغاء', 'Cancel'),
+      confirmText: tr('تمام', 'OK'),
     );
     if (d != null) setState(() => _start = dateOnly(d));
   }
@@ -133,19 +144,19 @@ class _MedFormScreenState extends State<MedFormScreen> {
     setState(() => _tried = true);
     final store = StoreScope.read(context);
     if (_personId == null) {
-      _snack('اختار الشخص الأول');
+      _snack(tr('اختار الشخص الأول', 'Choose a person first'));
       return;
     }
     if (_name.text.trim().isEmpty) {
-      _snack('اكتب اسم الدوا');
+      _snack(tr('اكتب اسم الدوا', 'Enter the medicine name'));
       return;
     }
     if (_dose.text.trim().isEmpty) {
-      _snack('اكتب الجرعة');
+      _snack(tr('اكتب الجرعة', 'Enter the dose'));
       return;
     }
     if (_times.isEmpty) {
-      _snack('ضيف ميعاد واحد على الأقل');
+      _snack(tr('ضيف ميعاد واحد على الأقل', 'Add at least one time'));
       return;
     }
     final e = widget.existing;
@@ -167,8 +178,9 @@ class _MedFormScreenState extends State<MedFormScreen> {
     final p = store.personById(_personId!);
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(e == null
-          ? 'تم! هنفكّر ${p?.name ?? ''} بـ ${m.name} لمدة ${daysLabel(m.days)} ✅'
-          : 'تم حفظ التعديلات ✅'),
+          ? tr('تم! هنفكّر ${p?.name ?? ''} بـ ${m.name} لمدة ${daysLabel(m.days)} ✅',
+              "Done! We'll remind ${p?.name ?? ''} to take ${m.name} for ${daysLabel(m.days)} ✅")
+          : tr('تم حفظ التعديلات ✅', 'Changes saved ✅')),
     ));
     Navigator.pop(context, true);
   }
@@ -199,7 +211,7 @@ class _MedFormScreenState extends State<MedFormScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.existing == null ? 'دوا جديد' : 'تعديل الدوا',
+        title: Text(widget.existing == null ? tr('دوا جديد', 'New medicine') : tr('تعديل الدوا', 'Edit medicine'),
             style: const TextStyle(fontWeight: FontWeight.w800)),
         leading: IconButton(
           icon: const Icon(Icons.close_rounded),
@@ -211,7 +223,7 @@ class _MedFormScreenState extends State<MedFormScreen> {
         children: [
           _Card(
             icon: Icons.person_rounded,
-            title: 'لمين الدوا؟',
+            title: tr('لمين الدوا؟', 'For whom?'),
             child: SizedBox(
               height: 92,
               child: ListView(
@@ -234,7 +246,7 @@ class _MedFormScreenState extends State<MedFormScreen> {
           ),
           _Card(
             icon: Icons.medication_rounded,
-            title: 'الدوا',
+            title: tr('الدوا', 'Medicine'),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -243,15 +255,15 @@ class _MedFormScreenState extends State<MedFormScreen> {
                   textInputAction: TextInputAction.next,
                   onChanged: (_) => setState(() {}),
                   decoration: InputDecoration(
-                    hintText: 'اسم الدوا (مثلًا: بانادول)',
+                    hintText: tr('اسم الدوا (مثلًا: بانادول)', 'Medicine name (e.g. Panadol)'),
                     prefixIcon: const Icon(Icons.edit_note_rounded),
                     errorText: _tried && _name.text.trim().isEmpty
-                        ? 'مطلوب'
+                        ? tr('مطلوب', 'Required')
                         : null,
                   ),
                 ),
                 const SizedBox(height: 14),
-                const Text('النوع',
+                Text(tr('النوع', 'Type'),
                     style: TextStyle(
                         fontWeight: FontWeight.w700, color: AppColors.muted)),
                 const SizedBox(height: 8),
@@ -273,7 +285,7 @@ class _MedFormScreenState extends State<MedFormScreen> {
           ),
           _Card(
             icon: Icons.science_rounded,
-            title: 'الجرعة',
+            title: tr('الجرعة', 'Dose'),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -281,10 +293,10 @@ class _MedFormScreenState extends State<MedFormScreen> {
                   controller: _dose,
                   onChanged: (_) => setState(() {}),
                   decoration: InputDecoration(
-                    hintText: 'مثلًا: قرص واحد بعد الأكل',
+                    hintText: tr('مثلًا: قرص واحد بعد الأكل', 'e.g. 1 tablet after meals'),
                     prefixIcon: const Icon(Icons.local_pharmacy_rounded),
                     errorText: _tried && _dose.text.trim().isEmpty
-                        ? 'مطلوب'
+                        ? tr('مطلوب', 'Required')
                         : null,
                   ),
                 ),
@@ -306,7 +318,7 @@ class _MedFormScreenState extends State<MedFormScreen> {
           ),
           _Card(
             icon: Icons.alarm_rounded,
-            title: 'المواعيد',
+            title: tr('المواعيد', 'Times'),
             subtitle: timesPerDayLabel(_times.length),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -316,10 +328,10 @@ class _MedFormScreenState extends State<MedFormScreen> {
                   runSpacing: 8,
                   children: [
                     for (final e in [
-                      ('مرة يوميًا', 24),
-                      ('كل 12 ساعة', 12),
-                      ('كل 8 ساعات', 8),
-                      ('كل 6 ساعات', 6),
+                      (tr('مرة يوميًا', 'Once daily'), 24),
+                      (tr('كل 12 ساعة', 'Every 12h'), 12),
+                      (tr('كل 8 ساعات', 'Every 8h'), 8),
+                      (tr('كل 6 ساعات', 'Every 6h'), 6),
                     ])
                       _ChoiceChip(
                         label: e.$1,
@@ -342,9 +354,9 @@ class _MedFormScreenState extends State<MedFormScreen> {
                     ActionChip(
                       avatar: const Icon(Icons.add_rounded,
                           color: AppColors.sky, size: 20),
-                      label: const Text('ميعاد',
-                          style: TextStyle(fontWeight: FontWeight.w700)),
-                      backgroundColor: Colors.white,
+                      label: Text(tr('ميعاد', 'Time'),
+                          style: const TextStyle(fontWeight: FontWeight.w700)),
+                      backgroundColor: AppColors.card,
                       side: const BorderSide(color: AppColors.sky),
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(14)),
@@ -353,14 +365,14 @@ class _MedFormScreenState extends State<MedFormScreen> {
                   ],
                 ),
                 const SizedBox(height: 6),
-                const Text('دوس على أي ميعاد عشان تغيّره',
+                Text(tr('دوس على أي ميعاد عشان تغيّره', 'Tap a time to change it'),
                     style: TextStyle(color: AppColors.muted, fontSize: 12)),
               ],
             ),
           ),
           _Card(
             icon: Icons.date_range_rounded,
-            title: 'المدة',
+            title: tr('المدة', 'Duration'),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -378,8 +390,8 @@ class _MedFormScreenState extends State<MedFormScreen> {
                                   fontSize: 34,
                                   fontWeight: FontWeight.w800,
                                   height: 1.1)),
-                          Text(_days == 1 ? 'يوم' : (_days <= 10 ? 'أيام' : 'يوم'),
-                              style: const TextStyle(color: AppColors.muted)),
+                          Text(dayUnit(_days),
+                              style: TextStyle(color: AppColors.muted)),
                         ],
                       ),
                     ),
@@ -402,23 +414,23 @@ class _MedFormScreenState extends State<MedFormScreen> {
                       ),
                   ],
                 ),
-                const Divider(height: 28, color: AppColors.line),
+                Divider(height: 28, color: AppColors.line),
                 Row(
                   children: [
-                    const Icon(Icons.play_circle_outline_rounded,
+                    Icon(Icons.play_circle_outline_rounded,
                         color: AppColors.muted),
                     const SizedBox(width: 8),
-                    const Text('يبدأ',
-                        style: TextStyle(fontWeight: FontWeight.w700)),
+                    Text(tr('يبدأ', 'Starts'),
+                        style: const TextStyle(fontWeight: FontWeight.w700)),
                     const Spacer(),
                     _ChoiceChip(
-                      label: 'النهارده',
+                      label: tr('النهارده', 'Today'),
                       selected: sameDay(_start, now),
                       onTap: () => setState(() => _start = dateOnly(now)),
                     ),
                     const SizedBox(width: 6),
                     _ChoiceChip(
-                      label: 'بكره',
+                      label: tr('بكره', 'Tomorrow'),
                       selected: sameDay(_start, now.add(const Duration(days: 1))),
                       onTap: () => setState(() => _start =
                           dateOnly(now.add(const Duration(days: 1)))),
@@ -432,19 +444,20 @@ class _MedFormScreenState extends State<MedFormScreen> {
                 ),
                 if (!sameDay(_start, now) &&
                     !sameDay(_start, now.add(const Duration(days: 1))))
-                  Text('من ${fullDate(_start)}',
-                      style: const TextStyle(color: AppColors.muted)),
+                  Text(tr('من ${fullDate(_start)}', 'From ${fullDate(_start)}'),
+                      style: TextStyle(color: AppColors.muted)),
               ],
             ),
           ),
           _Card(
             icon: Icons.sticky_note_2_rounded,
-            title: 'ملاحظة (اختياري)',
+            title: tr('ملاحظة (اختياري)', 'Note (optional)'),
             child: TextField(
               controller: _note,
               maxLines: 2,
-              decoration: const InputDecoration(
-                  hintText: 'مثلًا: بعد الأكل، مع كوباية مية'),
+              decoration: InputDecoration(
+                  hintText: tr('مثلًا: بعد الأكل، مع كوباية مية',
+                      'e.g. after meals, with a glass of water')),
             ),
           ),
           if (preview != null) _Summary(preview: preview, now: now),
@@ -456,7 +469,7 @@ class _MedFormScreenState extends State<MedFormScreen> {
           child: FilledButton.icon(
             onPressed: _save,
             icon: const Icon(Icons.check_rounded),
-            label: Text(widget.existing == null ? 'حفظ التذكير' : 'حفظ التعديلات'),
+            label: Text(widget.existing == null ? tr('حفظ التذكير', 'Save reminder') : tr('حفظ التعديلات', 'Save changes')),
           ),
         ),
       ),
@@ -489,9 +502,13 @@ class _Summary extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              'هيتبعت $upcoming تذكير (${doses.length} جرعة على ${daysLabel(preview.days)}). '
-              'آخر جرعة ${relativeDay(last.at, now)} الساعة ${fmtDateTime(last.at)} '
-              'وهنقولك إنها آخر جرعة، وبعدها التذكيرات هتقف لوحدها.',
+              tr(
+                  'هيتبعت $upcoming تذكير (${doses.length} جرعة على ${daysLabel(preview.days)}). '
+                      'آخر جرعة ${relativeDay(last.at, now)} الساعة ${fmtDateTime(last.at)} '
+                      'وهنقولك إنها آخر جرعة، وبعدها التذكيرات هتقف لوحدها.',
+                  '$upcoming reminders will be sent (${doses.length} doses over ${daysLabel(preview.days)}). '
+                      'The last dose is ${relativeDay(last.at, now).toLowerCase()} at ${fmtDateTime(last.at)}; '
+                      "we'll tell you it's the last one, then reminders stop automatically."),
               style: const TextStyle(height: 1.7, fontWeight: FontWeight.w600),
             ),
           ),
@@ -539,7 +556,7 @@ class _Card extends StatelessWidget {
                 const Spacer(),
                 if (subtitle != null)
                   Text(subtitle!,
-                      style: const TextStyle(
+                      style: TextStyle(
                           color: AppColors.muted, fontSize: 12)),
               ],
             ),
@@ -594,13 +611,13 @@ class _PersonOption extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              person?.name ?? 'جديد',
+              person?.name ?? tr('جديد', 'New'),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
-                color: selected ? AppColors.navy : AppColors.muted,
+                color: selected ? AppColors.ink : AppColors.muted,
               ),
             ),
           ],
@@ -629,10 +646,10 @@ class _ChoiceChip extends StatelessWidget {
           duration: const Duration(milliseconds: 200),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
           decoration: BoxDecoration(
-            color: selected ? AppColors.navy : AppColors.bg,
+            color: selected ? AppColors.primary : AppColors.bg,
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
-                color: selected ? AppColors.navy : AppColors.line),
+                color: selected ? AppColors.primary : AppColors.line),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -647,7 +664,7 @@ class _ChoiceChip extends StatelessWidget {
                   style: TextStyle(
                     fontWeight: FontWeight.w700,
                     fontSize: 13,
-                    color: selected ? Colors.white : AppColors.navy,
+                    color: selected ? Colors.white : AppColors.ink,
                   )),
             ],
           ),
@@ -718,7 +735,7 @@ class _RoundBtn extends StatelessWidget {
           child: SizedBox(
             width: 52,
             height: 52,
-            child: Icon(icon, color: AppColors.navy),
+            child: Icon(icon, color: AppColors.ink),
           ),
         ),
       );

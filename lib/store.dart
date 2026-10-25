@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'fmt.dart';
+import 'i18n.dart';
 import 'models.dart';
 import 'notifier.dart';
 
@@ -13,6 +14,21 @@ import 'notifier.dart';
 class AppStore extends ChangeNotifier {
   static const _kPeople = 'elagy.people';
   static const _kMeds = 'elagy.meds';
+  static const _kLang = 'elagy.lang';
+  static const _kTheme = 'elagy.theme';
+  static const _kSound = 'elagy.sound';
+
+  /// 'ar' or 'en'
+  String lang = 'ar';
+
+  /// 'system', 'light' or 'dark'
+  String themeMode = 'system';
+
+  bool sound = true;
+
+  /// UI state kept across theme/language rebuilds.
+  bool splashShown = false;
+  int homeTab = 0;
 
   final List<Person> people = [];
   final List<Medicine> meds = [];
@@ -30,6 +46,10 @@ class AppStore extends ChangeNotifier {
     _prefs = await SharedPreferences.getInstance();
     final p = _prefs!.getString(_kPeople);
     final m = _prefs!.getString(_kMeds);
+    lang = _prefs!.getString(_kLang) ?? 'ar';
+    appLang = lang;
+    themeMode = _prefs!.getString(_kTheme) ?? 'system';
+    sound = _prefs!.getBool(_kSound) ?? true;
     if (p != null) {
       people.addAll((jsonDecode(p) as List)
           .map((e) => Person.fromJson(e as Map<String, dynamic>)));
@@ -69,17 +89,19 @@ class AppStore extends ChangeNotifier {
     return null;
   }
 
-  Person addPerson(String name, int color) {
-    final p = Person(id: newId(), name: name.trim(), colorIndex: color);
+  Person addPerson(String name, int color, {String? photo}) {
+    final p = Person(
+        id: newId(), name: name.trim(), colorIndex: color, photo: photo);
     people.add(p);
     _save();
     notifyListeners();
     return p;
   }
 
-  void updatePerson(Person p, String name, int color) {
+  void updatePerson(Person p, String name, int color, {String? photo}) {
     p.name = name.trim();
     p.colorIndex = color;
+    p.photo = (photo == null || photo.isEmpty) ? null : photo;
     _save();
     notifyListeners();
   }
@@ -164,12 +186,100 @@ class AppStore extends ChangeNotifier {
     return best;
   }
 
+  // ---------- Settings ----------
+  void setLang(String v) {
+    lang = v;
+    appLang = v;
+    _prefs?.setString(_kLang, v);
+    notifyListeners();
+  }
+
+  void setThemeMode(String v) {
+    themeMode = v;
+    _prefs?.setString(_kTheme, v);
+    notifyListeners();
+  }
+
+  void setSound(bool v) {
+    sound = v;
+    _prefs?.setBool(_kSound, v);
+    notifyListeners();
+  }
+
+  // ---------- Data ----------
+  int get activeCourses =>
+      meds.where((m) => !m.isFinished(DateTime.now())).length;
+
+  int get totalTaken => meds.fold(0, (a, m) => a + m.takenCount());
+
+  /// Adherence over all doses that are already due (taken / due).
+  double? get adherence {
+    final now = DateTime.now();
+    var due = 0, taken = 0;
+    for (final m in meds) {
+      for (final d in m.doses) {
+        if (d.at.isAfter(now)) break;
+        due++;
+        if (d.isTaken) taken++;
+      }
+    }
+    return due == 0 ? null : taken / due;
+  }
+
+  String exportJson() => const JsonEncoder.withIndent('  ').convert({
+        'app': 'elagy',
+        'version': 1,
+        'exportedAt': DateTime.now().toIso8601String(),
+        'people': people.map((e) => e.toJson()).toList(),
+        'meds': meds.map((e) => e.toJson()).toList(),
+      });
+
+  /// Replaces all data with a backup. Returns false if the file is invalid.
+  bool importJson(String text) {
+    try {
+      final j = jsonDecode(text) as Map<String, dynamic>;
+      if (j['app'] != 'elagy') return false;
+      final ps = (j['people'] as List)
+          .map((e) => Person.fromJson(e as Map<String, dynamic>))
+          .toList();
+      final ms = (j['meds'] as List)
+          .map((e) => Medicine.fromJson(e as Map<String, dynamic>))
+          .toList();
+      people
+        ..clear()
+        ..addAll(ps);
+      meds
+        ..clear()
+        ..addAll(ms);
+      alert = null;
+      _save();
+      notifyListeners();
+      check();
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Wipes every person, medicine and reminder (settings are kept).
+  Future<void> deleteAll() async {
+    people.clear();
+    meds.clear();
+    alert = null;
+    await _prefs?.remove(_kPeople);
+    await _prefs?.remove(_kMeds);
+    notifyListeners();
+  }
+
   // ---------- Permissions ----------
   Future<void> requestPermission() async {
     permission = await WebNotifier.request();
     notifyListeners();
     if (permission == 'granted') {
-      WebNotifier.show('علاجي 💊', 'تمام! هنفكّرك بكل جرعة في ميعادها.',
+      WebNotifier.show(
+          tr('علاجي 💊', 'Elagy 💊'),
+          tr('تمام! هنفكّرك بكل جرعة في ميعادها.',
+              "All set! We'll remind you of every dose on time."),
           'elagy-welcome');
     }
   }
@@ -202,19 +312,26 @@ class AppStore extends ChangeNotifier {
   void _announce(Dose d, Person? person) {
     final who = person?.name ?? '';
     final title = d.isLast
-        ? '⚠️ آخر جرعة — ${d.med.name}'
-        : '💊 ميعاد علاج${who.isEmpty ? '' : ' $who'}';
+        ? tr('⚠️ آخر جرعة — ${d.med.name}', '⚠️ Last dose — ${d.med.name}')
+        : tr('💊 ميعاد علاج${who.isEmpty ? '' : ' $who'}',
+            '💊 Medicine time${who.isEmpty ? '' : ' for $who'}');
+    final prefix = who.isEmpty ? '' : '$who: ';
     final body = d.isLast
-        ? '${who.isEmpty ? '' : '$who: '}دي آخر جرعة من ${d.med.name} (${d.med.dose}). بعدها الكورس خلص ومش هنبعت تذكيرات تاني. ألف سلامة 🌿'
-        : '${d.med.name} — ${d.med.dose} • جرعة ${d.index} من ${d.total}';
+        ? tr(
+            '${prefix}دي آخر جرعة من ${d.med.name} (${d.med.dose}). بعدها الكورس خلص ومش هنبعت تذكيرات تاني. ألف سلامة 🌿',
+            "${prefix}This is the LAST dose of ${d.med.name} (${d.med.dose}). The course is complete and reminders will stop. Get well soon 🌿")
+        : tr('${d.med.name} — ${d.med.dose} • جرعة ${d.index} من ${d.total}',
+            '${d.med.name} — ${d.med.dose} • dose ${d.index} of ${d.total}');
     WebNotifier.show(title, body, d.key);
-    WebNotifier.beep();
+    if (sound) WebNotifier.beep();
     alert = d;
   }
 
   /// Sends a sample notification so the user can verify everything works.
   void testNotification() {
-    WebNotifier.show('علاجي 💊', 'كده الإشعارات شغالة تمام ✅', 'elagy-test');
-    WebNotifier.beep();
+    WebNotifier.show(tr('علاجي 💊', 'Elagy 💊'),
+        tr('كده الإشعارات شغالة تمام ✅', 'Notifications are working ✅'),
+        'elagy-test');
+    if (sound) WebNotifier.beep();
   }
 }
