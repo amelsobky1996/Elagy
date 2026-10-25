@@ -1,0 +1,20 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "installCommand": "echo 'Flutter is installed in build.sh'",
+  "buildCommand": "bash build.sh",
+  "outputDirectory": "build/web",
+  "headers": [
+    {
+      "source": "/notify/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-cache" },
+        { "key": "Service-Worker-Allowed", "value": "/notify/" }
+      ]
+    },
+    {
+      "source": "/(index.html|flutter_bootstrap.js|flutter_service_worker.js|manifest.json)",
+      "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
+    }
+  ]
+}

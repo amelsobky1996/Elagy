@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <base href="$FLUTTER_BASE_HREF">
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+  <meta name="description" content="علاجي — تذكير بمواعيد الأدوية لكل أفراد البيت">
+  <meta name="theme-color" content="#ffffff">
+
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="علاجي">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="icon" type="image/png" href="favicon.png">
+  <link rel="manifest" href="manifest.json">
+  <title>علاجي</title>
+
+  <style>
+    html, body { margin: 0; height: 100%; background: #ffffff; }
+    #boot {
+      position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+      background: linear-gradient(180deg, #ffffff, #eaf5fc);
+      transition: opacity .3s ease;
+    }
+    #boot img { width: 120px; animation: pulse 1.4s ease-in-out infinite; }
+    @keyframes pulse { 0%,100% { transform: scale(.92); opacity: .7 } 50% { transform: scale(1); opacity: 1 } }
+  </style>
+
+  <script>
+    // ---------- Notification helpers used from Dart (lib/notifier.dart) ----------
+    var elagySwReg = null;
+    if ('serviceWorker' in navigator) {
+      // Registered under its own scope so it never fights with Flutter's worker.
+      navigator.serviceWorker.register('notify/notify-sw.js', { scope: 'notify/' })
+        .then(function (r) { elagySwReg = r; })
+        .catch(function () {});
+    }
+
+    window.elagyPermission = function () {
+      if (!('Notification' in window)) return 'unsupported';
+      return Notification.permission;
+    };
+
+    window.elagyRequestPermission = function () {
+      if (!('Notification' in window)) return Promise.resolve('unsupported');
+      try {
+        var p = Notification.requestPermission();
+        if (p && p.then) return p;
+        return Promise.resolve(Notification.permission);
+      } catch (e) {
+        return new Promise(function (res) { Notification.requestPermission(res); });
+      }
+    };
+
+    window.elagyNotify = function (title, body, tag) {
+      if (!('Notification' in window) || Notification.permission !== 'granted') return;
+      var opts = {
+        body: body,
+        tag: tag,
+        icon: 'icons/notify.png',
+        badge: 'icons/Icon-192.png',
+        dir: 'rtl',
+        lang: 'ar',
+        renotify: true,
+        requireInteraction: true,
+        vibrate: [300, 120, 300, 120, 300]
+      };
+      var viaSw = function (reg) { return reg.showNotification(title, opts); };
+      if (elagySwReg) {
+        viaSw(elagySwReg).catch(function () { try { new Notification(title, opts); } catch (e) {} });
+      } else if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistration('notify/').then(function (r) {
+          if (r) return viaSw(r);
+          new Notification(title, opts);
+        }).catch(function () { try { new Notification(title, opts); } catch (e) {} });
+      } else {
+        try { new Notification(title, opts); } catch (e) {}
+      }
+      try { if (navigator.vibrate) navigator.vibrate([300, 120, 300]); } catch (e) {}
+    };
+
+    var elagyAudio = null;
+    window.elagyBeep = function () {
+      try {
+        var Ctx = window.AudioContext || window.webkitAudioContext;
+        if (!Ctx) return;
+        elagyAudio = elagyAudio || new Ctx();
+        var ctx = elagyAudio;
+        if (ctx.state === 'suspended') ctx.resume();
+        [0, 0.28, 0.56].forEach(function (t, i) {
+          var o = ctx.createOscillator(), g = ctx.createGain();
+          o.type = 'sine';
+          o.frequency.value = i === 2 ? 1046 : 880;
+          g.gain.setValueAtTime(0.0001, ctx.currentTime + t);
+          g.gain.exponentialRampToValueAtTime(0.35, ctx.currentTime + t + 0.02);
+          g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + t + 0.24);
+          o.connect(g); g.connect(ctx.destination);
+          o.start(ctx.currentTime + t); o.stop(ctx.currentTime + t + 0.26);
+        });
+      } catch (e) {}
+    };
+    // Unlock audio on first touch (mobile browsers block it until a gesture).
+    window.addEventListener('pointerdown', function unlock() {
+      try {
+        var Ctx = window.AudioContext || window.webkitAudioContext;
+        if (Ctx) { elagyAudio = elagyAudio || new Ctx(); elagyAudio.resume(); }
+      } catch (e) {}
+      window.removeEventListener('pointerdown', unlock);
+    });
+
+    window.elagyIsStandalone = function () {
+      return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    };
+  </script>
+</head>
+<body>
+  <div id="boot"><img src="icons/notify.png" alt="علاجي"></div>
+  <script>
+    window.addEventListener('flutter-first-frame', function () {
+      var b = document.getElementById('boot');
+      if (b) { b.style.opacity = '0'; setTimeout(function () { b.remove(); }, 300); }
+    });
+  </script>
+  <script src="flutter_bootstrap.js" async></script>
+</body>
+</html>

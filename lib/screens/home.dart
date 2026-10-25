@@ -1,0 +1,280 @@
+import 'package:flutter/material.dart';
+
+import '../fmt.dart';
+import '../models.dart';
+import '../notifier.dart';
+import '../theme.dart';
+import '../widgets.dart';
+import 'med_form.dart';
+import 'meds_tab.dart';
+import 'people_tab.dart';
+import 'today_tab.dart';
+
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  int _tab = 0;
+
+  Future<void> _addMed() async {
+    final store = StoreScope.read(context);
+    final saved = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => const MedFormScreen()),
+    );
+    if (saved == true && mounted) {
+      setState(() => _tab = 0);
+      if (store.permission == 'default') {
+        await store.requestPermission();
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final store = StoreScope.of(context);
+    final tabs = [
+      TodayTab(onAdd: _addMed),
+      MedsTab(onAdd: _addMed),
+      const PeopleTab(),
+    ];
+    return Scaffold(
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            if (store.alert != null) _AlertBanner(dose: store.alert!),
+            if (store.loaded &&
+                store.meds.isNotEmpty &&
+                store.permission != 'granted')
+              const _PermissionBanner(),
+            Expanded(
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 250),
+                child: KeyedSubtree(key: ValueKey(_tab), child: tabs[_tab]),
+              ),
+            ),
+          ],
+        ),
+      ),
+      floatingActionButton: _tab == 2
+          ? null
+          : FloatingActionButton.extended(
+              onPressed: _addMed,
+              backgroundColor: AppColors.navy,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20)),
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('دوا جديد',
+                  style: TextStyle(fontWeight: FontWeight.w700)),
+            ),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _tab,
+        backgroundColor: Colors.white,
+        indicatorColor: AppColors.skyLight,
+        height: 68,
+        onDestinationSelected: (i) => setState(() => _tab = i),
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.today_outlined),
+            selectedIcon: Icon(Icons.today_rounded, color: AppColors.navy),
+            label: 'اليوم',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.medication_outlined),
+            selectedIcon:
+                Icon(Icons.medication_rounded, color: AppColors.navy),
+            label: 'الأدوية',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.people_outline_rounded),
+            selectedIcon: Icon(Icons.people_rounded, color: AppColors.navy),
+            label: 'الأشخاص',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AlertBanner extends StatelessWidget {
+  final Dose dose;
+  const _AlertBanner({required this.dose});
+
+  @override
+  Widget build(BuildContext context) {
+    final store = StoreScope.of(context);
+    final person = store.personById(dose.med.personId);
+    final last = dose.isLast;
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 10, 16, 4),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: last
+              ? const [Color(0xFFF2A14A), Color(0xFFE5616F)]
+              : const [Color(0xFF4FA8D8), Color(0xFF1B3358)],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: (last ? AppColors.orange : AppColors.sky)
+                .withValues(alpha: 0.35),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.notifications_active_rounded,
+              color: Colors.white, size: 30),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  last
+                      ? 'دي آخر جرعة! ${person?.name ?? ''}'
+                      : 'ميعاد الدوا — ${person?.name ?? ''}',
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 15),
+                ),
+                Text(
+                  '${dose.med.name} • ${dose.med.dose}',
+                  style: const TextStyle(color: Colors.white70),
+                ),
+              ],
+            ),
+          ),
+          TextButton(
+            style: TextButton.styleFrom(
+              backgroundColor: Colors.white,
+              foregroundColor: AppColors.navy,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14)),
+            ),
+            onPressed: () => store.toggleTaken(dose),
+            child: const Text('خدتها ✓',
+                style: TextStyle(fontWeight: FontWeight.w800)),
+          ),
+          IconButton(
+            onPressed: store.dismissAlert,
+            icon: const Icon(Icons.close_rounded, color: Colors.white70),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PermissionBanner extends StatelessWidget {
+  const _PermissionBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    final store = StoreScope.of(context);
+    final denied = store.permission == 'denied';
+    final unsupported = store.permission == 'unsupported';
+    final ios = !WebNotifier.isStandalone();
+    String msg;
+    if (unsupported) {
+      msg = ios
+          ? 'عشان الإشعارات تشتغل على الآيفون: Share ← Add to Home Screen وافتح علاجي من الأيقونة.'
+          : 'المتصفح ده مش بيدعم الإشعارات. جرّب Chrome.';
+    } else if (denied) {
+      msg = 'الإشعارات مقفولة. افتحها من إعدادات المتصفح للموقع ده.';
+    } else {
+      msg = 'فعّل الإشعارات عشان نفكّرك بكل جرعة في ميعادها.';
+    }
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 10, 16, 4),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.orangeLight,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.orange.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.notifications_off_rounded, color: AppColors.orange),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(msg,
+                style: const TextStyle(
+                    fontSize: 13, height: 1.5, fontWeight: FontWeight.w600)),
+          ),
+          if (!denied && !unsupported)
+            TextButton(
+              onPressed: store.requestPermission,
+              child: const Text('تفعيل',
+                  style: TextStyle(fontWeight: FontWeight.w800)),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Shared header used by the tabs.
+class TabHeader extends StatelessWidget {
+  final String title;
+  final String? subtitle;
+  final Widget? trailing;
+  const TabHeader(
+      {super.key, required this.title, this.subtitle, this.trailing});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 10),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (subtitle != null)
+                  Text(subtitle!,
+                      style: const TextStyle(
+                          color: AppColors.muted,
+                          fontWeight: FontWeight.w600)),
+                Text(title,
+                    style: const TextStyle(
+                        fontSize: 26, fontWeight: FontWeight.w800, height: 1.3)),
+              ],
+            ),
+          ),
+          if (trailing != null) trailing!,
+        ],
+      ),
+    );
+  }
+}
+
+String greeting(DateTime now) {
+  final h = now.hour;
+  if (h < 12) return 'صباح الخير ☀️';
+  if (h < 18) return 'مساء النور 🌤️';
+  return 'مساء الخير 🌙';
+}
+
+String todayLabel(DateTime now) => fullDate(now);
+
+Widget logoBadge() => Container(
+      width: 46,
+      height: 46,
+      padding: const EdgeInsets.all(5),
+      decoration: cardDeco(radius: 16),
+      child: Image.asset('assets/logo_icon.png'),
+    );
+
+// Keep PersonAvatar import used in this file's public API for tabs.
+typedef Avatar = PersonAvatar;
